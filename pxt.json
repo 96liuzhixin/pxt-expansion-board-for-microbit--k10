@@ -1,5 +1,6 @@
 {
     "name": "pxt - Expansion Board for micro:bit & K10",
+    "version": "0.0.1",
     "description": "",
     "dependencies": {
         "core": "*",
