@@ -14,7 +14,7 @@ enum MyEnumMotor {
     //% block="M4"
     M4,
     //% block="ALL"
-    ALL,
+    ALL
 }
 
 // Motor direction enumeration
@@ -22,7 +22,7 @@ enum MyEnumDir {
     //% block="forward"
     Forward,
     //% block="backward"
-    Backward,
+    Backward
 }
 
 // Servo ports enumeration
@@ -37,13 +37,6 @@ enum Servos {
     S4
 }
 
-// Example general-purpose enumeration
-enum MyEnum {
-    //% block="one"
-    One,
-    //% block="two"
-    Two
-}
 
 // Pin number enumeration
 enum PinNumber {
@@ -81,10 +74,10 @@ enum PinState {
 
 // Sensor type enumeration
 enum SensorType {
-    //% block="ADC"
+    //% block="ADC_value"
     Analog = 0,
     //% block="digital in"
-    Digital = 1,
+    Digital_IN = 1,
     //% block="DHT11Temperature"
     DHT11Temperature = 2,
     //% block="DHT11Humidity"
@@ -94,7 +87,7 @@ enum SensorType {
     //% block="DHT22Humidity"
     DHT22Humidity = 5,
     //% block="DS18B20Temperature"
-    DS18B20Temperature = 6,
+    DS18B20Temperature = 6
 }
 
 // 360-degree servo direction enumeration
@@ -205,8 +198,8 @@ namespace ExpansionBoard {
         i2cWriteWithRetry(I2CADDR, buf);
     }
 
+    //% block="set servo %index angle %angle"
     //% weight=90
-    //% blockId=servo_Servo block="servo|%index|angle|%angle"
     //% angle.min=0 angle.max=180
     export function servoRun(servo: Servos, angle: number): void {
         angle = Math.max(0, Math.min(180, angle)); // Clamp angle
@@ -298,6 +291,119 @@ namespace ExpansionBoard {
             let cmd = MOTOR_CMDS[emotor];
             let buf = createMotorData(cmd, edir, speed);
             i2cWriteWithRetry(I2CADDR, buf);
+        }
+    }
+    //% block="read pin %pin type %type"
+    //% weight=87
+    export function readSensor(pin: PinNumber, type: SensorType): number {
+        const DATA_ENABLE = 0x01;
+        const MODE_ERROR = 0x02;
+        const RETRY_COUNT = 3;
+
+        switch (type) {
+            case SensorType.Analog:
+                // ADC读取
+                let adcBuf = i2cReadWithRetry(I2CADDR, 0x45 + pin * 3, 3);
+                if (adcBuf && adcBuf[0] == DATA_ENABLE) {
+                    let adcValue = (adcBuf[1] << 8) | adcBuf[2];
+                    if (adcValue > 3900) {
+                        adcValue = 4095;
+                    } else if (adcValue < 40) {
+                        adcValue = 0;
+                    }
+                    return adcValue;
+                }
+                return 0xFFFF;
+
+            case SensorType.Digital_IN:
+                // GPIO读取
+                let gpioBuf = i2cReadWithRetry(I2CADDR, 0x3f + pin, 1);
+                return gpioBuf ? gpioBuf[0] : 0xFF;
+
+            case SensorType.DHT11Temperature:
+                // DHT11温度读取
+                let enableBuf = pins.createBuffer(2);
+                enableBuf[0] = 0x57 + pin * 5;
+                enableBuf[1] = DATA_ENABLE;
+                i2cWriteWithRetry(I2CADDR, enableBuf);
+                basic.pause(30);
+                let dht11TempBuf = i2cReadWithRetry(I2CADDR, 0x57 + pin * 5, 3);
+                if (dht11TempBuf && dht11TempBuf[0] == DATA_ENABLE) {
+                    let sign = 1.0;
+                    if (dht11TempBuf[1] & 0x80) {
+                        dht11TempBuf[1] &= 0x7f;
+                        sign = -1.0;
+                    }
+                    return (dht11TempBuf[1] + dht11TempBuf[2] * 0.01) * sign;
+                }
+                return 0;
+
+            case SensorType.DHT11Humidity:
+                // DHT11湿度读取
+                enableBuf = pins.createBuffer(2);
+                enableBuf[0] = 0x57 + pin * 5;
+                enableBuf[1] = DATA_ENABLE;
+                i2cWriteWithRetry(I2CADDR, enableBuf);
+                basic.pause(30);
+                let dht11HumBuf = i2cReadWithRetry(I2CADDR, 0x57 + pin * 5, 5);
+                if (dht11HumBuf && dht11HumBuf[0] == DATA_ENABLE) {
+                    return dht11HumBuf[3] + dht11HumBuf[4] * 0.01;
+                }
+                return 0;
+
+            case SensorType.DHT22Temperature:
+                // DHT22温度读取
+                enableBuf = pins.createBuffer(2);
+                enableBuf[0] = 0x57 + pin * 5;
+                enableBuf[1] = DATA_ENABLE;
+                i2cWriteWithRetry(I2CADDR, enableBuf);
+                basic.pause(30);
+                let dht22TempBuf = i2cReadWithRetry(I2CADDR, 0x57 + pin * 5, 3);
+                if (dht22TempBuf && dht22TempBuf[0] == DATA_ENABLE) {
+                    let sign = 1.0;
+                    if (dht22TempBuf[1] & 0x80) {
+                        dht22TempBuf[1] &= 0x7f;
+                        sign = -1.0;
+                    }
+                    return (dht22TempBuf[1] + dht22TempBuf[2] * 0.01) * sign;
+                }
+                return 0;
+
+            case SensorType.DHT22Humidity:
+                // DHT22湿度读取
+                enableBuf = pins.createBuffer(2);
+                enableBuf[0] = 0x57 + pin * 5;
+                enableBuf[1] = DATA_ENABLE;
+                i2cWriteWithRetry(I2CADDR, enableBuf);
+                basic.pause(30);
+                let dht22HumBuf = i2cReadWithRetry(I2CADDR, 0x57 + pin * 5, 5);
+                if (dht22HumBuf && dht22HumBuf[0] == DATA_ENABLE) {
+                    return dht22HumBuf[3] + dht22HumBuf[4] * 0.01;
+                }
+                return 0;
+
+            case SensorType.DS18B20Temperature:
+                // DS18B20读取
+                enableBuf = pins.createBuffer(2);
+                enableBuf[0] = 0x75 + pin * 3;
+                enableBuf[1] = DATA_ENABLE;
+                i2cWriteWithRetry(I2CADDR, enableBuf);
+                basic.pause(100);
+                let ds18b20Buf = i2cReadWithRetry(I2CADDR, 0x75 + pin * 3, 3);
+                if (ds18b20Buf && ds18b20Buf[0] == DATA_ENABLE) {
+                    if (ds18b20Buf[1] == 0xff && ds18b20Buf[2] == 0xff) {
+                        return 0.0;
+                    }
+                    let sign = 1.0;
+                    if (ds18b20Buf[1] & 0x80) {
+                        ds18b20Buf[1] &= 0x7f;
+                        sign = -1.0;
+                    }
+                    return ((ds18b20Buf[1] * 256 + ds18b20Buf[2]) / 16.0) * sign;
+                }
+                return 0.0;
+            default:
+                return 0;
         }
     }
 }
