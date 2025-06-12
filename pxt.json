@@ -1,5 +1,5 @@
 {
-    "name": "expansionboard",
+    "name": "expansionBoard",
     "version": "0.1.0",
     "description": "This is the Expansion Board",
     "license": "MIT",
@@ -16,9 +16,7 @@
         "_locales/zh-cn/expansionboard-strings.json",
         "_locales/zh-cn/expansionboard-jsdoc-strings.json"
     ],
-    "testFiles": [
-        "test.ts"
-    ],
+    "testFiles": [],
     "targetVersions": {
         "target": "7.0.61",
         "targetId": "microbit"
@@ -26,5 +24,5 @@
     "supportedTargets": [
         "microbit"
     ],
-    "preferredEditor": "tsprj"
+    "preferredEditor": "blocksprj"
 }
